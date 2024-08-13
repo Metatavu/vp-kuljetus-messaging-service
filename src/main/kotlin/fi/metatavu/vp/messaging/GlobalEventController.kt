@@ -6,6 +6,7 @@ import fi.metatavu.vp.messaging.events.GlobalEvent
 import io.quarkus.smallrye.reactivemessaging.sendSuspending
 import io.smallrye.mutiny.Uni
 import io.vertx.core.json.JsonObject
+import io.vertx.mutiny.core.eventbus.EventBus
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.enterprise.event.Event
 import jakarta.inject.Inject
@@ -22,14 +23,14 @@ import org.jboss.logging.Logger
 @ApplicationScoped
 class GlobalEventController {
 
-    @Inject
-    lateinit var globalEvent: Event<GlobalEvent>
-
     @Channel("vp-out")
     var vpEventsEmitter: Emitter<GlobalEvent>? = null
 
     @ConfigProperty(name = "vp.senderid")
     lateinit var senderId: String
+
+    @Inject
+    lateinit var bus: EventBus
 
     @Inject
     lateinit var objectMapper: ObjectMapper
@@ -58,7 +59,7 @@ class GlobalEventController {
             event.nack(Throwable("Failed to parse the payload"))
         }
         if (payload?.senderId != senderId) {
-            globalEvent.fire(payload)
+            bus.publish(eventType, payload)
         }
 
         return Uni.createFrom().voidItem()
