@@ -3,20 +3,14 @@
 import com.fasterxml.jackson.databind.ObjectMapper
 import fi.metatavu.vp.messaging.events.DriverWorkingStateChangeGlobalEvent
 import fi.metatavu.vp.messaging.events.GlobalEvent
-import io.quarkus.smallrye.reactivemessaging.sendSuspending
 import io.smallrye.mutiny.Uni
+import io.smallrye.reactive.messaging.rabbitmq.OutgoingRabbitMQMetadata
 import io.vertx.core.json.JsonObject
 import io.vertx.mutiny.core.eventbus.EventBus
 import jakarta.enterprise.context.ApplicationScoped
-import jakarta.enterprise.event.Event
 import jakarta.inject.Inject
-import org.eclipse.microprofile.config.inject.ConfigProperty
-import org.eclipse.microprofile.reactive.messaging.Channel
-import org.eclipse.microprofile.reactive.messaging.Emitter
-import org.eclipse.microprofile.reactive.messaging.Incoming
-import org.eclipse.microprofile.reactive.messaging.Message
+import org.eclipse.microprofile.reactive.messaging.*
 import org.jboss.logging.Logger
-import java.util.*
 
  /**
  * Global event controller
@@ -27,9 +21,6 @@ class GlobalEventController {
     @Channel("vp-out")
     var vpEventsEmitter: Emitter<GlobalEvent>? = null
 
-    @ConfigProperty(name = "vp.senderid")
-    lateinit var senderId: String
-
     @Inject
     lateinit var bus: EventBus
 
@@ -39,12 +30,28 @@ class GlobalEventController {
     @Inject
     lateinit var logger: Logger
 
-    suspend fun publish(event: GlobalEvent) {
-        event.senderId = senderId
-        vpEventsEmitter?.sendSuspending(event)
-        logger.debug("Event sent: ${event.type} from instance $senderId")
+     /**
+      * Publishes global event
+      *
+      * @param event event to publish
+      */
+     fun publish(event: GlobalEvent) {
+         val message = Message.of(
+             event, Metadata.of(
+                 OutgoingRabbitMQMetadata.Builder()
+                     .withRoutingKey(event.type.name)
+                     .build()
+             )
+         )
+         vpEventsEmitter?.send(message)
     }
 
+    /**
+     * Listens to incoming global events
+     *
+     * @param event incoming event
+     * @return
+     */
     @Incoming("vp-in")
     fun listen(event: Message<JsonObject>): Uni<Void>? {
         val eventType = event.payload.getString("type")
@@ -59,9 +66,8 @@ class GlobalEventController {
             logger.error("Failed ro parse the payload $eventType")
             event.nack(Throwable("Failed to parse the payload"))
         }
-        if (payload?.senderId != senderId) {
-            bus.publish(eventType, payload)
-        }
+
+        bus.publish(eventType, payload)
 
         return Uni.createFrom().voidItem()
     }
