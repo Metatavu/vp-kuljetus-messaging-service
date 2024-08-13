@@ -16,7 +16,6 @@ import kotlin.jvm.optionals.getOrNull
  */
 @RequestScoped
 @Path("/test-rabbitmq")
-@IfBuildProfile("test")
 class TestEndpoint {
 
     @Inject
