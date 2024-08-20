@@ -9,14 +9,20 @@ amqp-port=5672
 amqp-username=guest
 amqp-password=guest
 
-mp.messaging.outgoing.vp-out.connector=smallrye-rabbitmq        # name of connector, do not change
+# name of connector, do not change
+mp.messaging.outgoing.vp-out.connector=smallrye-rabbitmq        
 mp.messaging.outgoing.vp-out.exchange.name=common-exchange
 
-mp.messaging.incoming.vp-in.connector=smallrye-rabbitmq         # name of connector, do not change
-mp.messaging.incoming.vp-in.queue.name=app1-queue               # unique incming queue name for each app
+# name of connector, do not change
+mp.messaging.incoming.vp-in.connector=smallrye-rabbitmq
+         
+# unique incming queue name for each app
+mp.messaging.incoming.vp-in.queue.name=app1-queue               
 mp.messaging.incoming.vp-in.queue.x-queue-type=quorum
 mp.messaging.incoming.vp-in.exchange.name=common-exchange
-mp.messaging.incoming.vp-in.routing-keys=EVENT_TYPE1,EVENT_TYPE2  # routing keys for each event type that is accepted by this queue, default is #
+
+# routing keys for each event type that is accepted by this queue, default is #
+mp.messaging.incoming.vp-in.routing-keys=EVENT_TYPE1,EVENT_TYPE2  
 ```
 
 #### Error handling:

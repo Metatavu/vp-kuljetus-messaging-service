@@ -1,5 +1,8 @@
 package fi.metatavu.vp.messaging
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import fi.metatavu.vp.messaging.events.DriverWorkingStateChangeGlobalEvent
 import fi.metatavu.vp.messaging.events.GlobalEventType
 import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
@@ -27,6 +30,9 @@ class GlobalEventController {
 
     @Inject
     lateinit var logger: Logger
+
+    private val objectMapper: ObjectMapper
+        get() = jacksonObjectMapper().registerModule(JavaTimeModule())
 
      /**
       * Publishes global event
@@ -74,7 +80,7 @@ class GlobalEventController {
          val eventType = event.getString("type")
 
          val payload = when (eventType) {
-             GlobalEventType.DRIVER_WORKING_STATE_CHANGE.name -> event.mapTo(DriverWorkingStateChangeGlobalEvent::class.java)
+             GlobalEventType.DRIVER_WORKING_STATE_CHANGE.name -> objectMapper.readValue(event.toString(), DriverWorkingStateChangeGlobalEvent::class.java)
              else -> null
          }
 
