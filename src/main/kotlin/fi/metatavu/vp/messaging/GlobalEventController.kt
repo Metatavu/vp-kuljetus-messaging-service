@@ -1,8 +1,8 @@
- package fi.metatavu.vp.messaging
+package fi.metatavu.vp.messaging
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import fi.metatavu.vp.messaging.events.DriverWorkingStateChangeGlobalEvent
-import fi.metatavu.vp.messaging.events.GlobalEvent
+import fi.metatavu.vp.messaging.events.GlobalEventType
+import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
 import io.smallrye.mutiny.Uni
 import io.smallrye.reactive.messaging.rabbitmq.OutgoingRabbitMQMetadata
 import io.vertx.core.json.JsonObject
@@ -16,16 +16,14 @@ import org.jboss.logging.Logger
  * Global event controller
  */
 @ApplicationScoped
+@Suppress("unused")
 class GlobalEventController {
 
     @Channel("vp-out")
-    var vpEventsEmitter: Emitter<GlobalEvent>? = null
+    var eventsEmitter: Emitter<GlobalEvent>? = null
 
     @Inject
-    lateinit var bus: EventBus
-
-    @Inject
-    lateinit var objectMapper: ObjectMapper
+    lateinit var eventBus: EventBus
 
     @Inject
     lateinit var logger: Logger
@@ -36,40 +34,51 @@ class GlobalEventController {
       * @param event event to publish
       */
      fun publish(event: GlobalEvent) {
-         val message = Message.of(
-             event, Metadata.of(
-                 OutgoingRabbitMQMetadata.Builder()
-                     .withRoutingKey(event.type.name)
-                     .build()
-             )
+         val messageMetadata = Metadata.of(
+             OutgoingRabbitMQMetadata.Builder()
+                 .withRoutingKey(event.type.name)
+                 .build()
          )
-         vpEventsEmitter?.send(message)
+         val message = Message.of(event, messageMetadata)
+         eventsEmitter?.send(message)
     }
 
     /**
      * Listens to incoming global events
      *
      * @param event incoming event
-     * @return
      */
     @Incoming("vp-in")
     fun listen(event: Message<JsonObject>): Uni<Void>? {
-        val eventType = event.payload.getString("type")
-        val payload = when (eventType) {
-            GlobalEventType.DRIVER_WORKING_STATE_CHANGE.name -> objectMapper.readValue(
-                event.payload.toString(),
-                DriverWorkingStateChangeGlobalEvent::class.java
-            )
-            else -> null
-        }
+        val (eventType, payload) = deserializeEvent(event.payload)
+
         if (payload == null) {
-            logger.error("Failed ro parse the payload $eventType")
+            logger.error("Failed to parse the payload $eventType")
             event.nack(Throwable("Failed to parse the payload"))
         }
 
-        bus.publish(eventType, payload)
+        logger.debug("Parsed $eventType event\n$payload")
+
+        eventBus.publish(eventType, payload)
 
         return Uni.createFrom().voidItem()
     }
+
+     /**
+      * Deserializes global event
+      *
+      * @param event event to deserialize
+      * @return Pair of events type and deserialized event
+      */
+     private fun deserializeEvent(event: JsonObject): Pair<String, GlobalEvent?> {
+         val eventType = event.getString("type")
+
+         val payload = when (eventType) {
+             GlobalEventType.DRIVER_WORKING_STATE_CHANGE.name -> event.mapTo(DriverWorkingStateChangeGlobalEvent::class.java)
+             else -> null
+         }
+
+         return eventType to payload
+     }
 
 }

@@ -1,8 +1,9 @@
-package fi.metatavu.vp.messaging.events
+package fi.metatavu.vp.messaging.events.abstracts
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import fi.metatavu.vp.messaging.GlobalEventType
+import fi.metatavu.vp.messaging.events.GlobalEventType
+import fi.metatavu.vp.messaging.events.DriverWorkingStateChangeGlobalEvent
 import io.quarkus.runtime.annotations.RegisterForReflection
 
 @RegisterForReflection
