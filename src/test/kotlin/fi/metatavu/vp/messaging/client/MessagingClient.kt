@@ -1,12 +1,14 @@
 package fi.metatavu.vp.messaging.client
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import fi.metatavu.vp.messaging.RoutingKey
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.Channel
 import com.rabbitmq.client.Connection
 import com.rabbitmq.client.ConnectionFactory
 import fi.metatavu.vp.usermanagement.settings.RabbitMQTestProfile.Companion.EXCHANGE_NAME
-import io.vertx.core.json.JsonObject
 import org.eclipse.microprofile.config.ConfigProvider
 
 /**
@@ -30,6 +32,9 @@ object MessagingClient {
     private val hostName: String
         get() = ConfigProvider.getConfig().getValue("rabbitmq-host", String::class.java)
 
+    private val objectMapper: ObjectMapper
+        get() = jacksonObjectMapper().registerModule(JavaTimeModule())
+
     /**
      * Publishes a message to the RabbitMQ exchange
      *
@@ -44,7 +49,7 @@ object MessagingClient {
             EXCHANGE_NAME,
             RoutingKey.DRIVER_WORKING_STATE_CHANGE.name,
             props,
-            JsonObject.mapFrom(message).encode().toByteArray()
+            objectMapper.writeValueAsBytes(message)
         )
     }
 
