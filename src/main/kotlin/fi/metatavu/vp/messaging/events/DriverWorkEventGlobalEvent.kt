@@ -1,6 +1,6 @@
 package fi.metatavu.vp.messaging.events
 
-import fi.metatavu.vp.api.model.WorkEventType
+import fi.metatavu.vp.usermanagement.model.WorkEventType
 import fi.metatavu.vp.messaging.events.abstracts.TelematicsDataGlobalEvent
 import io.quarkus.runtime.annotations.RegisterForReflection
 import java.time.OffsetDateTime
