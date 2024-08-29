@@ -85,6 +85,10 @@ object MessagingClient {
         incomingMessages[routingKey] = messages + message
     }
 
+    fun clearIncomingMessages(routingKey: String) {
+        incomingMessages.clear()
+    }
+
     /**
      * Sets up the RabbitMQ client.
      *
