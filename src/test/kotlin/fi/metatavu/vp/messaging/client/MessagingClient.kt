@@ -62,6 +62,10 @@ object MessagingClient {
         return incomingMessages[routingKey] as List<T>? ?: emptyList()
     }
 
+    fun clearMessages(routingKey: String) {
+        incomingMessages.remove(routingKey)
+    }
+
     private fun addIncomingMessage(routingKey: String, message: GlobalEvent) {
         val messages = incomingMessages[routingKey] ?: emptyList()
         incomingMessages[routingKey] = messages + message
