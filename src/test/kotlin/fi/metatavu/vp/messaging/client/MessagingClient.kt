@@ -13,10 +13,9 @@ import org.eclipse.microprofile.config.ConfigProvider
  */
 object MessagingClient {
 
-    private var connection: Connection? = null
-    private var channel: Channel? = null
-
-    private val incomingMessages: MutableMap<String, List<GlobalEvent>> = HashMap()
+    private lateinit var connection: Connection
+    lateinit var channel: Channel
+    lateinit var queueName: String
 
     private const val EXCHANGE_NAME = "test-exchange"
 
@@ -41,12 +40,12 @@ object MessagingClient {
      *
      * @param message message to be published
      */
-    fun publishMessage(message: Any) {
+    fun publishMessage(message: GlobalEvent) {
         val props = AMQP.BasicProperties()
             .builder()
             .contentType("application/json")
             .build()
-        channel?.basicPublish(
+        channel.basicPublish(
             EXCHANGE_NAME,
             RoutingKey.DRIVER_WORKING_STATE_CHANGE.name,
             props,
@@ -54,27 +53,26 @@ object MessagingClient {
         )
     }
 
-    fun getIncomingMessages(): Map<String, List<GlobalEvent>> {
-        return incomingMessages
-    }
+    /**
+     * Sets a consumer for the RabbitMQ client
+     *
+     * @param T type of the message
+     * @return message consumer
+     */
+    inline fun <reified T: GlobalEvent> setConsumer(): MessageConsumer<T> {
+        val consumer = MessageConsumer(channel, T::class)
+        channel.basicConsume(
+            queueName,
+            consumer,
+        )
 
-    fun <T: GlobalEvent> getIncomingMessages(routingKey: String): List<T> {
-        return incomingMessages[routingKey] as List<T>? ?: emptyList()
-    }
-
-    fun clearMessages(routingKey: String) {
-        incomingMessages.remove(routingKey)
-    }
-
-    private fun addIncomingMessage(routingKey: String, message: GlobalEvent) {
-        val messages = incomingMessages[routingKey] ?: emptyList()
-        incomingMessages[routingKey] = messages + message
+        return consumer
     }
 
     /**
      * Sets up the RabbitMQ client.
      *
-     * e.g. connects to the broker and declares the exchange
+     * e.g. connects to the broker, declares an exchange and binds a queue
      */
     private fun setupClient() {
         val factory = ConnectionFactory()
@@ -82,33 +80,11 @@ object MessagingClient {
         factory.password = password
         factory.host = hostName
         factory.port = port
-        val newConnection = factory.newConnection()
-        val newChannel = newConnection.createChannel()
+        connection = factory.newConnection()
+        channel = connection.createChannel()
 
-        connection = newConnection
-        channel = newChannel
-
-        channel?.exchangeDeclare(EXCHANGE_NAME, "topic", true)
-        val queueName = channel?.queueDeclare()?.queue
-        channel?.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
-
-        channel?.basicConsume(
-            queueName,
-            object: DefaultConsumer(channel) {
-                override fun handleDelivery(
-                    consumerTag: String?,
-                    envelope: Envelope?,
-                    properties: AMQP.BasicProperties?,
-                    body: ByteArray?
-                ) {
-                    if (envelope?.routingKey == null) {
-                        throw IllegalArgumentException("Routing key is missing")
-                    }
-                    val message = objectMapper.readValue(body, GlobalEvent::class.java)
-                    addIncomingMessage(envelope.routingKey, message)
-                    super.handleDelivery(consumerTag, envelope, properties, body)
-                }
-            },
-        )
+        channel.exchangeDeclare(EXCHANGE_NAME, "topic", true)
+        queueName = channel.queueDeclare().queue
+        channel.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
     }
 }
