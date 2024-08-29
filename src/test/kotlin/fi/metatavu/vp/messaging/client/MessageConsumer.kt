@@ -56,13 +56,13 @@ class MessageConsumer<T: GlobalEvent>(
      * @param waitTime time to wait for messages in minutes
      * @return list of messages
      */
-    @Suppress("UNCHECKED_CAST")
     fun consumeMessages(waitCount: Int, waitTime: Long = 1): List<T> {
+        val arrivedMessages = mutableListOf<T>()
         Awaitility
             .await()
             .atMost(waitTime, TimeUnit.MINUTES)
             .until { messages.size >= waitCount }
-        val arrivedMessages = messages
+        arrivedMessages.addAll(messages)
         messages.clear()
 
         return arrivedMessages
