@@ -3,12 +3,9 @@ package fi.metatavu.vp.messaging.client
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.rabbitmq.client.*
 import fi.metatavu.vp.messaging.RoutingKey
-import com.rabbitmq.client.AMQP
-import com.rabbitmq.client.Channel
-import com.rabbitmq.client.Connection
-import com.rabbitmq.client.ConnectionFactory
-import fi.metatavu.vp.usermanagement.settings.RabbitMQTestProfile.Companion.EXCHANGE_NAME
+import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
 import org.eclipse.microprofile.config.ConfigProvider
 
 /**
@@ -18,6 +15,10 @@ object MessagingClient {
 
     private var connection: Connection? = null
     private var channel: Channel? = null
+
+    private val incomingMessages: MutableMap<String, List<GlobalEvent>> = HashMap()
+
+    private const val EXCHANGE_NAME = "test-exchange"
 
     init {
         setupClient()
@@ -53,6 +54,19 @@ object MessagingClient {
         )
     }
 
+    fun getIncomingMessages(): Map<String, List<GlobalEvent>> {
+        return incomingMessages
+    }
+
+    fun <T: GlobalEvent> getIncomingMessages(routingKey: String): List<T> {
+        return incomingMessages[routingKey] as List<T>? ?: emptyList()
+    }
+
+    private fun addIncomingMessage(routingKey: String, message: GlobalEvent) {
+        val messages = incomingMessages[routingKey] ?: emptyList()
+        incomingMessages[routingKey] = messages + message
+    }
+
     /**
      * Sets up the RabbitMQ client.
      *
@@ -73,5 +87,24 @@ object MessagingClient {
         channel?.exchangeDeclare(EXCHANGE_NAME, "topic", true)
         val queueName = channel?.queueDeclare()?.queue
         channel?.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
+
+        channel?.basicConsume(
+            queueName,
+            object: DefaultConsumer(channel) {
+                override fun handleDelivery(
+                    consumerTag: String?,
+                    envelope: Envelope?,
+                    properties: AMQP.BasicProperties?,
+                    body: ByteArray?
+                ) {
+                    if (envelope?.routingKey == null) {
+                        throw IllegalArgumentException("Routing key is missing")
+                    }
+                    val message = objectMapper.readValue(body, GlobalEvent::class.java)
+                    addIncomingMessage(envelope.routingKey, message)
+                    super.handleDelivery(consumerTag, envelope, properties, body)
+                }
+            },
+        )
     }
 }
