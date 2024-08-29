@@ -16,7 +16,7 @@ object MessagingClient {
     private var connection: Connection? = null
     private var channel: Channel? = null
 
-    private val incomingMessages: MutableMap<String, List<GlobalEvent>> = HashMap()
+    private val incomingMessages: MutableMap<String, MutableList<GlobalEvent>> = HashMap()
 
     private const val EXCHANGE_NAME = "test-exchange"
 
@@ -82,11 +82,16 @@ object MessagingClient {
      */
     private fun addIncomingMessage(routingKey: String, message: GlobalEvent) {
         val messages = incomingMessages[routingKey] ?: emptyList()
-        incomingMessages[routingKey] = messages + message
+        incomingMessages[routingKey] = (messages + message).toMutableList()
     }
 
+    /**
+     * Clears incoming messages with given routing key
+     *
+     * @param routingKey routing key to clear messages for
+     */
     fun clearIncomingMessages(routingKey: String) {
-        incomingMessages.clear()
+        incomingMessages[routingKey]?.clear()
     }
 
     /**
