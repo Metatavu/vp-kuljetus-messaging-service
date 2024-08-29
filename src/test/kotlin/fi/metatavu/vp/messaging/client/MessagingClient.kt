@@ -85,7 +85,7 @@ object MessagingClient {
         channel = connection.createChannel()
 
         channel.exchangeDeclare(EXCHANGE_NAME, "topic", true)
-        val queueName = channel.queueDeclare().queue
+        queueName = channel.queueDeclare().queue
         channel.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
     }
 }
