@@ -10,15 +10,22 @@ import com.rabbitmq.client.Envelope
 import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
 import org.testcontainers.shaded.org.awaitility.Awaitility
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.KClass
 
 /**
  * RabbitMQ message consumer
  *
  * @param channel RabbitMQ channel
+ * @param routingKey routing key
+ * @param typeClass type class of messages to be handled by the consumer
  */
-class MessageConsumer(channel: Channel): DefaultConsumer(channel) {
+class MessageConsumer<T: GlobalEvent>(
+    channel: Channel,
+    private val routingKey: String,
+    private val typeClass: KClass<T>
+): DefaultConsumer(channel) {
 
-    private val incomingMessages: MutableMap<String, MutableList<GlobalEvent>> = HashMap()
+    private val messages = mutableListOf<T>()
 
     private val objectMapper: ObjectMapper
         get() = jacksonObjectMapper().registerModule(JavaTimeModule())
@@ -32,49 +39,32 @@ class MessageConsumer(channel: Channel): DefaultConsumer(channel) {
         if (envelope?.routingKey == null) {
             throw IllegalArgumentException("Routing key is missing")
         }
-        val message = objectMapper.readValue(body, GlobalEvent::class.java)
-        addIncomingMessage(envelope.routingKey, message)
+        if (envelope.routingKey != routingKey) {
+            return
+        }
+        val message = objectMapper.readValue(body, typeClass.java)
+        messages.add(message)
         super.handleDelivery(consumerTag, envelope, properties, body)
     }
 
     /**
-     * Waits for x-amount of incoming messages for a specific routing key
+     * Waits for x-amount of incoming messages
      *
      * Clears the messages after.
      *
-     * @param routingKey routing key
      * @param waitCount number of messages to wait
      * @param waitTime time to wait for messages in minutes
      * @return list of messages
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T: GlobalEvent> consumeMessages(routingKey: String, waitCount: Int, waitTime: Long = 1): List<T> {
+    fun consumeMessages(waitCount: Int, waitTime: Long = 1): List<T> {
         Awaitility
             .await()
             .atMost(waitTime, TimeUnit.MINUTES)
-            .until { (incomingMessages[routingKey]?.size ?: 0) >= waitCount }
+            .until { messages.size >= waitCount }
+        val arrivedMessages = messages
+        messages.clear()
 
-        return clearMessages(routingKey) as List<T>? ?: emptyList()
-    }
-
-    /**
-     * Clears incoming messages with given routing key
-     *
-     * @param routingKey routing key
-     * @return list of messages associated with the cleared key
-     */
-    private fun clearMessages(routingKey: String): MutableList<GlobalEvent>? {
-        return incomingMessages.remove(routingKey)
-    }
-
-    /**
-     * Adds incoming message to the list of incoming messages
-     *
-     * @param routingKey routing key
-     * @param message message
-     */
-    private fun addIncomingMessage(routingKey: String, message: GlobalEvent) {
-        val messages = incomingMessages[routingKey] ?: emptyList()
-        incomingMessages[routingKey] = (messages + message).toMutableList()
+        return arrivedMessages
     }
 }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.rabbitmq.client.*
 import fi.metatavu.vp.messaging.RoutingKey
+import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
 import org.eclipse.microprofile.config.ConfigProvider
 
 /**
@@ -13,8 +14,8 @@ import org.eclipse.microprofile.config.ConfigProvider
 object MessagingClient {
 
     private lateinit var connection: Connection
-    private lateinit var channel: Channel
-    private lateinit var queueName: String
+    lateinit var channel: Channel
+    lateinit var queueName: String
 
     private const val EXCHANGE_NAME = "test-exchange"
 
@@ -55,10 +56,11 @@ object MessagingClient {
     /**
      * Sets a consumer for the RabbitMQ client
      *
+     * @param routingKey routing key
      * @return message consumer
      */
-    fun setConsumer(): MessageConsumer {
-        val consumer = MessageConsumer(channel)
+    inline fun <reified T: GlobalEvent> setConsumer(routingKey: String): MessageConsumer<T> {
+        val consumer = MessageConsumer(channel, routingKey, T::class)
         channel.basicConsume(
             queueName,
             consumer,
