@@ -5,7 +5,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.rabbitmq.client.*
 import fi.metatavu.vp.messaging.RoutingKey
-import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
 import org.eclipse.microprofile.config.ConfigProvider
 
 /**
@@ -13,10 +12,9 @@ import org.eclipse.microprofile.config.ConfigProvider
  */
 object MessagingClient {
 
-    private var connection: Connection? = null
-    private var channel: Channel? = null
-
-    private val incomingMessages: MutableMap<String, MutableList<GlobalEvent>> = HashMap()
+    private lateinit var connection: Connection
+    private lateinit var channel: Channel
+    private lateinit var queueName: String
 
     private const val EXCHANGE_NAME = "test-exchange"
 
@@ -46,7 +44,7 @@ object MessagingClient {
             .builder()
             .contentType("application/json")
             .build()
-        channel?.basicPublish(
+        channel.basicPublish(
             EXCHANGE_NAME,
             RoutingKey.DRIVER_WORKING_STATE_CHANGE.name,
             props,
@@ -55,43 +53,18 @@ object MessagingClient {
     }
 
     /**
-     * Returns all incoming messages
+     * Sets a consumer for the RabbitMQ client
      *
-     * @return map of routing keys and messages
+     * @return message consumer
      */
-    fun getIncomingMessages(): Map<String, List<GlobalEvent>> {
-        return incomingMessages
-    }
+    fun setConsumer(): MessageConsumer {
+        val consumer = MessageConsumer(channel)
+        channel.basicConsume(
+            queueName,
+            consumer,
+        )
 
-    /**
-     * Returns all incoming messages for a specific routing key
-     *
-     * @param T type of the message
-     * @param routingKey routing key to filter messages by
-     * @return list of messages
-     */
-    fun <T: GlobalEvent> getIncomingMessages(routingKey: String): List<T> {
-        return incomingMessages[routingKey] as List<T>? ?: emptyList()
-    }
-
-    /**
-     * Adds an incoming message to the list of incoming messages
-     *
-     * @param routingKey routing key of the message
-     * @param message message to be added
-     */
-    private fun addIncomingMessage(routingKey: String, message: GlobalEvent) {
-        val messages = incomingMessages[routingKey] ?: emptyList()
-        incomingMessages[routingKey] = (messages + message).toMutableList()
-    }
-
-    /**
-     * Clears incoming messages with given routing key
-     *
-     * @param routingKey routing key to clear messages for
-     */
-    fun clearIncomingMessages(routingKey: String) {
-        incomingMessages[routingKey]?.clear()
+        return consumer
     }
 
     /**
@@ -105,33 +78,12 @@ object MessagingClient {
         factory.password = password
         factory.host = hostName
         factory.port = port
-        val newConnection = factory.newConnection()
-        val newChannel = newConnection.createChannel()
 
-        connection = newConnection
-        channel = newChannel
+        connection = factory.newConnection()
+        channel = connection.createChannel()
 
-        channel?.exchangeDeclare(EXCHANGE_NAME, "topic", true)
-        val queueName = channel?.queueDeclare()?.queue
-        channel?.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
-
-        channel?.basicConsume(
-            queueName,
-            object: DefaultConsumer(channel) {
-                override fun handleDelivery(
-                    consumerTag: String?,
-                    envelope: Envelope?,
-                    properties: AMQP.BasicProperties?,
-                    body: ByteArray?
-                ) {
-                    if (envelope?.routingKey == null) {
-                        throw IllegalArgumentException("Routing key is missing")
-                    }
-                    val message = objectMapper.readValue(body, GlobalEvent::class.java)
-                    addIncomingMessage(envelope.routingKey, message)
-                    super.handleDelivery(consumerTag, envelope, properties, body)
-                }
-            },
-        )
+        channel.exchangeDeclare(EXCHANGE_NAME, "topic", true)
+        val queueName = channel.queueDeclare().queue
+        channel.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
     }
 }
