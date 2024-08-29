@@ -54,18 +54,32 @@ object MessagingClient {
         )
     }
 
+    /**
+     * Returns all incoming messages
+     *
+     * @return map of routing keys and messages
+     */
     fun getIncomingMessages(): Map<String, List<GlobalEvent>> {
         return incomingMessages
     }
 
+    /**
+     * Returns all incoming messages for a specific routing key
+     *
+     * @param T type of the message
+     * @param routingKey routing key to filter messages by
+     * @return list of messages
+     */
     fun <T: GlobalEvent> getIncomingMessages(routingKey: String): List<T> {
         return incomingMessages[routingKey] as List<T>? ?: emptyList()
     }
 
-    fun clearMessages(routingKey: String) {
-        incomingMessages.remove(routingKey)
-    }
-
+    /**
+     * Adds an incoming message to the list of incoming messages
+     *
+     * @param routingKey routing key of the message
+     * @param message message to be added
+     */
     private fun addIncomingMessage(routingKey: String, message: GlobalEvent) {
         val messages = incomingMessages[routingKey] ?: emptyList()
         incomingMessages[routingKey] = messages + message
