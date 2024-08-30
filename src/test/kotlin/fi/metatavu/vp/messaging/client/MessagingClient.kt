@@ -15,9 +15,9 @@ object MessagingClient {
 
     private lateinit var connection: Connection
     lateinit var channel: Channel
-    lateinit var queueName: String
+    val queues: MutableMap<String, MessageConsumer<*>> = HashMap()
 
-    private const val EXCHANGE_NAME = "test-exchange"
+    const val EXCHANGE_NAME = "test-exchange"
 
     init {
         setupClient()
@@ -60,11 +60,15 @@ object MessagingClient {
      * @return message consumer
      */
     inline fun <reified T: GlobalEvent> setConsumer(routingKey: String): MessageConsumer<T> {
+        val queueName = channel.queueDeclare().queue
+        channel.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
         val consumer = MessageConsumer(channel, routingKey, T::class)
         channel.basicConsume(
             queueName,
             consumer,
         )
+
+        queues[queueName] = consumer
 
         return consumer
     }
@@ -85,7 +89,5 @@ object MessagingClient {
         channel = connection.createChannel()
 
         channel.exchangeDeclare(EXCHANGE_NAME, "topic", true)
-        queueName = channel.queueDeclare().queue
-        channel.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
     }
 }

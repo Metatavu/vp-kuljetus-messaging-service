@@ -40,6 +40,7 @@ class MessageConsumer<T: GlobalEvent>(
             throw IllegalArgumentException("Routing key is missing")
         }
         if (envelope.routingKey != routingKey) {
+            println("Routing key does not match: ${envelope.routingKey}")
             return
         }
         val message = objectMapper.readValue(body, typeClass.java)
