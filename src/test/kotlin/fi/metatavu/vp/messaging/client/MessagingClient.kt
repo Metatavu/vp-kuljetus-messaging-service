@@ -3,12 +3,9 @@ package fi.metatavu.vp.messaging.client
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.rabbitmq.client.*
 import fi.metatavu.vp.messaging.RoutingKey
-import com.rabbitmq.client.AMQP
-import com.rabbitmq.client.Channel
-import com.rabbitmq.client.Connection
-import com.rabbitmq.client.ConnectionFactory
-import fi.metatavu.vp.usermanagement.settings.RabbitMQTestProfile.Companion.EXCHANGE_NAME
+import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
 import org.eclipse.microprofile.config.ConfigProvider
 
 /**
@@ -16,8 +13,11 @@ import org.eclipse.microprofile.config.ConfigProvider
  */
 object MessagingClient {
 
-    private var connection: Connection? = null
-    private var channel: Channel? = null
+    private lateinit var connection: Connection
+    lateinit var channel: Channel
+    val queues: MutableMap<String, MessageConsumer<*>> = HashMap()
+
+    const val EXCHANGE_NAME = "test-exchange"
 
     init {
         setupClient()
@@ -45,12 +45,32 @@ object MessagingClient {
             .builder()
             .contentType("application/json")
             .build()
-        channel?.basicPublish(
+        channel.basicPublish(
             EXCHANGE_NAME,
             RoutingKey.DRIVER_WORKING_STATE_CHANGE.name,
             props,
             objectMapper.writeValueAsBytes(message)
         )
+    }
+
+    /**
+     * Sets a consumer for the RabbitMQ client
+     *
+     * @param routingKey routing key
+     * @return message consumer
+     */
+    inline fun <reified T: GlobalEvent> setConsumer(routingKey: String): MessageConsumer<T> {
+        val queueName = channel.queueDeclare().queue
+        channel.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
+        val consumer = MessageConsumer(channel, routingKey, T::class)
+        channel.basicConsume(
+            queueName,
+            consumer,
+        )
+
+        queues[queueName] = consumer
+
+        return consumer
     }
 
     /**
@@ -64,14 +84,10 @@ object MessagingClient {
         factory.password = password
         factory.host = hostName
         factory.port = port
-        val newConnection = factory.newConnection()
-        val newChannel = newConnection.createChannel()
 
-        connection = newConnection
-        channel = newChannel
+        connection = factory.newConnection()
+        channel = connection.createChannel()
 
-        channel?.exchangeDeclare(EXCHANGE_NAME, "topic", true)
-        val queueName = channel?.queueDeclare()?.queue
-        channel?.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
+        channel.exchangeDeclare(EXCHANGE_NAME, "topic", true)
     }
 }
