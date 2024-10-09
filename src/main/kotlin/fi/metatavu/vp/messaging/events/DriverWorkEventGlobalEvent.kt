@@ -10,6 +10,7 @@ import java.util.*
 data class DriverWorkEventGlobalEvent(
     override val driverId: UUID,
     val workEventType: WorkEventType,
-    val time: OffsetDateTime
+    val time: OffsetDateTime,
+    val truckId: UUID
 ): TelematicsDataGlobalEvent(GlobalEventType.DRIVER_WORKING_STATE_CHANGE, driverId)
 
