@@ -52,7 +52,7 @@ class GlobalEventController: WithCoroutineScope() {
     * @param event incoming event
     */
     @Incoming("vp-in")
-    fun listen(event: IncomingRabbitMQMessage<JsonObject>): Uni<Void>? = withCoroutineScope {
+    fun listen(event: IncomingRabbitMQMessage<JsonObject>): Uni<Void>? = withCoroutineScope(60_000) {
         val (eventType, payload) = deserializeEvent(event.payload)
 
         if (payload == null) {
