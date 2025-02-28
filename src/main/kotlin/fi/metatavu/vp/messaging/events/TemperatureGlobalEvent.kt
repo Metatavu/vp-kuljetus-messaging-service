@@ -6,5 +6,6 @@ import io.quarkus.runtime.annotations.RegisterForReflection
 @RegisterForReflection
 data class TemperatureGlobalEvent(
     val sensorId: String,
-    val temperature: Float
+    val temperature: Float,
+    val timestamp: Long
 ): GlobalEvent(GlobalEventType.TEMPERATURE)
