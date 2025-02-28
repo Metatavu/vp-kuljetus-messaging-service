@@ -3,7 +3,6 @@ package fi.metatavu.vp.messaging
 import fi.metatavu.vp.messaging.events.DriverWorkEventGlobalEvent
 import fi.metatavu.vp.messaging.events.GlobalEventType
 import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
-import fi.metatavu.vp.WithCoroutineScope
 import fi.metatavu.vp.messaging.events.TemperatureGlobalEvent
 import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.coroutines.awaitSuspending
