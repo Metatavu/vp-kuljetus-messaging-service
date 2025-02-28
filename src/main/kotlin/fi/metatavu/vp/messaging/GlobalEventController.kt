@@ -3,8 +3,10 @@ package fi.metatavu.vp.messaging
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import fi.metatavu.vp.messaging.events.DriverWorkEventGlobalEvent
 import fi.metatavu.vp.messaging.events.GlobalEventType
+import fi.metatavu.vp.messaging.events.TemperatureGlobalEvent
 import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
 import io.smallrye.mutiny.Uni
 import io.smallrye.reactive.messaging.rabbitmq.OutgoingRabbitMQMetadata
@@ -81,6 +83,7 @@ class GlobalEventController {
 
          val payload = when (eventType) {
              GlobalEventType.DRIVER_WORKING_STATE_CHANGE.name -> objectMapper.readValue(event.toString(), DriverWorkEventGlobalEvent::class.java)
+             GlobalEventType.TEMPERATURE.name -> objectMapper.readValue(event.toString(), TemperatureGlobalEvent::class.java)
              else -> null
          }
 
