@@ -3,7 +3,7 @@ package fi.metatavu.vp.messaging
 import fi.metatavu.vp.messaging.events.DriverWorkEventGlobalEvent
 import fi.metatavu.vp.messaging.events.GlobalEventType
 import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
-import fi.metatavu.vp.usermanagement.WithCoroutineScope
+import fi.metatavu.vp.messaging.events.TemperatureGlobalEvent
 import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.coroutines.awaitSuspending
 import io.smallrye.reactive.messaging.rabbitmq.IncomingRabbitMQMessage
@@ -15,7 +15,7 @@ import jakarta.inject.Inject
 import org.eclipse.microprofile.reactive.messaging.*
 import org.jboss.logging.Logger
 
- /**
+/**
  * Global event controller
  */
 @ApplicationScoped
@@ -32,10 +32,10 @@ class GlobalEventController: WithCoroutineScope() {
     lateinit var logger: Logger
 
     /**
-    * Publishes global event
-    *
-    * @param event event to publish
-    */
+     * Publishes global event
+     *
+     * @param event event to publish
+     */
     fun publish(event: GlobalEvent) {
         val messageMetadata = Metadata.of(
             OutgoingRabbitMQMetadata.Builder()
@@ -47,10 +47,10 @@ class GlobalEventController: WithCoroutineScope() {
     }
 
     /**
-    * Listens to incoming global events
-    *
-    * @param event incoming event
-    */
+     * Listens to incoming global events
+     *
+     * @param event incoming event
+     */
     @Incoming("vp-in")
     fun listen(event: IncomingRabbitMQMessage<JsonObject>): Uni<Void>? = withCoroutineScope(60_000) {
         val (eventType, payload) = deserializeEvent(event.payload)
@@ -103,16 +103,17 @@ class GlobalEventController: WithCoroutineScope() {
     }
 
     /**
-    * Deserializes global event
-    *
-    * @param event event to deserialize
-    * @return Pair of events type and deserialized event
-    */
+     * Deserializes global event
+     *
+     * @param event event to deserialize
+     * @return Pair of events type and deserialized event
+     */
     private fun deserializeEvent(event: JsonObject): Pair<String, GlobalEvent?> {
         val eventType = event.getString("type")
 
         val payload = when (eventType) {
             GlobalEventType.DRIVER_WORKING_STATE_CHANGE.name -> event.mapTo(DriverWorkEventGlobalEvent::class.java)
+            GlobalEventType.TEMPERATURE.name -> event.mapTo(TemperatureGlobalEvent::class.java)
             else -> null
         }
 

@@ -40,14 +40,14 @@ object MessagingClient {
      *
      * @param message message to be published
      */
-    fun publishMessage(message: Any) {
+    fun publishMessage(message: Any, routingKey: RoutingKey) {
         val props = AMQP.BasicProperties()
             .builder()
             .contentType("application/json")
             .build()
         channel.basicPublish(
             EXCHANGE_NAME,
-            RoutingKey.DRIVER_WORKING_STATE_CHANGE.name,
+            routingKey.name,
             props,
             objectMapper.writeValueAsBytes(message)
         )
@@ -59,10 +59,10 @@ object MessagingClient {
      * @param routingKey routing key
      * @return message consumer
      */
-    inline fun <reified T: GlobalEvent> setConsumer(routingKey: String): MessageConsumer<T> {
+    inline fun <reified T: GlobalEvent> setConsumer(routingKey: RoutingKey): MessageConsumer<T> {
         val queueName = channel.queueDeclare().queue
-        channel.queueBind(queueName, EXCHANGE_NAME, RoutingKey.DRIVER_WORKING_STATE_CHANGE.name)
-        val consumer = MessageConsumer(channel, routingKey, T::class)
+        channel.queueBind(queueName, EXCHANGE_NAME, routingKey.name)
+        val consumer = MessageConsumer(channel, routingKey.name, T::class)
         channel.basicConsume(
             queueName,
             consumer,
