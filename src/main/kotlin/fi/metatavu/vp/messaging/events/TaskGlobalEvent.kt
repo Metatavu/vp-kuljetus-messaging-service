@@ -9,6 +9,6 @@ import java.util.*
 @RegisterForReflection
 data class TaskGlobalEvent(
     val userId: UUID,
-    val taskType: TaskType,
-    val taskStatus: TaskStatus
+    val taskType: String,
+    val taskStatus: String
     ): GlobalEvent(GlobalEventType.TASK)
