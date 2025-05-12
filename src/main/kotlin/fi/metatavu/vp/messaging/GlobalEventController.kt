@@ -114,6 +114,7 @@ class GlobalEventController: WithCoroutineScope() {
         val payload = when (eventType) {
             GlobalEventType.DRIVER_WORKING_STATE_CHANGE.name -> event.mapTo(DriverWorkEventGlobalEvent::class.java)
             GlobalEventType.TEMPERATURE.name -> event.mapTo(TemperatureGlobalEvent::class.java)
+            GlobalEventType.TASK.name -> event.mapTo(GlobalEvent::class.java)
             else -> null
         }
 
