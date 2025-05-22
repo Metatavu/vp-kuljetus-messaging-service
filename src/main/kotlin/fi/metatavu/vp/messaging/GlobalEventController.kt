@@ -2,6 +2,7 @@ package fi.metatavu.vp.messaging
 
 import fi.metatavu.vp.messaging.events.DriverWorkEventGlobalEvent
 import fi.metatavu.vp.messaging.events.GlobalEventType
+import fi.metatavu.vp.messaging.events.TaskGlobalEvent
 import fi.metatavu.vp.messaging.events.abstracts.GlobalEvent
 import fi.metatavu.vp.messaging.events.TemperatureGlobalEvent
 import io.smallrye.mutiny.Uni
@@ -114,6 +115,7 @@ class GlobalEventController: WithCoroutineScope() {
         val payload = when (eventType) {
             GlobalEventType.DRIVER_WORKING_STATE_CHANGE.name -> event.mapTo(DriverWorkEventGlobalEvent::class.java)
             GlobalEventType.TEMPERATURE.name -> event.mapTo(TemperatureGlobalEvent::class.java)
+            GlobalEventType.TASK.name -> event.mapTo(TaskGlobalEvent::class.java)
             else -> null
         }
 
