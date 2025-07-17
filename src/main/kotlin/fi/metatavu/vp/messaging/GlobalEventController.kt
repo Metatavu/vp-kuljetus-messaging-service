@@ -63,13 +63,17 @@ class GlobalEventController: WithCoroutineScope() {
 
         logger.debug("Parsed $eventType event\n$payload")
 
-        eventBus.request<Boolean>(eventType, payload)
-            .onFailure()
-            .invoke { throwable -> onFailure(event, throwable) }
-            .onItem()
-            .transform { it.body() }
-            .invoke { success -> onItem(event, success) }
-            .awaitSuspending()
+        try {
+            eventBus.request<Boolean>(eventType, payload)
+                .onFailure()
+                .invoke { throwable -> onFailure(event, throwable) }
+                .onItem()
+                .transform { it.body() }
+                .invoke { success -> onItem(event, success) }
+                .awaitSuspending()
+        } catch (ex: Exception) {
+            onFailure(event, ex)
+        }
     }.replaceWithVoid()
 
     /**
